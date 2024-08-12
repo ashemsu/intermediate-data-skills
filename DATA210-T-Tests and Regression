@@ -1,0 +1,188 @@
+###
+#DATA-2100
+#Adefoluke Shemsu
+#Week 7
+###
+
+setwd("~/Documents/Education/Penn/Classes/DATA 210/Week 7")
+
+library(tidyverse)
+library(randomizr)
+
+set.seed(28)
+
+# In many states, almost all states convicted felons are banned from voting while they serve their prison, parole,
+# or probation sentence. In some of those states, they are able to have their voting rights restored. 
+# Even after voting rights are restored, former felons continue to register to vote and vote at extremely low rates. 
+# In this question, we will look at an experiment (co-authored by UPenn’s Dr. Marc Meredith) that sought to understand 
+# what caused these low rates. The researchers were specifically interested in how much of this low rate could be 
+# explained by felons’ not knowing that their voting rights had been or could be restored after serving their sentence.
+
+# For these exercises, you will use the dataset ‘felons.RData’ to replicate some of the findings in the article 
+# “Can Incarcerated Felons be (Re)integrated into the Political System? Results from a Field Experiment.”
+
+# a. Imagine you wanted to understand the effect that felony convictions and incarceration have on voter 
+# registration and turnout (after the sentence has been served). 
+# Somebody suggests that you compare the voter registration rates and turnout rates of former felons to people 
+# who never have served time for a felony. Discuss why this research design could or could not help you to get a 
+# good estimate of the causal effect that you are interested in.
+
+# This design could be productive  as long as we have more data to work from, as the presented premise relies on
+# dependent variables that are technically very different contextually and are arguably mutually exclusive. In other words, 
+# though there may be correlation, the fact that we don't know how one might directly influence the other would likely 
+# lead to data that is skewed against ex-felons' participation for an array of un-addressed reasons. We need a third element 
+# that accounts for outlaying factors and distinctly ties these variables together. An example could be something 
+# like whether the non-felons served time at all (since even 6 months in jail for non-felonies can impact 
+# civic participation) for something else, or whether the felon went to prison more than once 
+# (since 1 felony bout vs 3 will impact civic participation).
+
+#b. Read the Experimental Design section of the “Can Incarcerated Felons be (Re)integrated into the Political System?” 
+# (pages 915 through 917 in gerber, et al 2015.pdf ).
+
+#i. What are the causal effect(s) that the authors are interested in studying? 
+
+# The authors want to study the causal impact of felony time served on an individual's likeliness to vote 
+# compared against on their level of education on their ability to exercise their political engagement rights.
+
+# ii. Describe the treatment and control conditions in the experiment.
+
+# The control group was a group of ex-felons whose data was provided by the state of CT that would not be contacted 
+# to inform of their right to engage in the voting process. The treatment group was another group of CT-based
+# ex-felons that would be engaged via marketing campaign and educated on their voting rights. This group was also 
+# parsed down to consider the nature of the crimes committed, and to account for the 40% outreach that bounce. 
+# CT was chosen because it is a state that re-instates a felon's voting rights upon release.
+
+#The findings here also took further a multi-state study that tested a similar hypothesis (minus outreach) in 2008.
+
+#iii. Describe the randomization strategy that the authors used.
+
+# For the treatment group, a randomly selected subset of ex-felons were sent letters at random (one of two types) on 
+# Secretary of State letterhead informing them that they were currently not registered to vote but were eligible to do so.
+# This group was then split into two groups, where any imbalances in demographics, release date, and crimes committed 
+# were balanced, and where one treatment group's letter merely stated an eligibility to vote while the other group
+# was offered an explanation of their voting rights from a certified letter from the Secretary of State.
+
+# c. Now we’re going to analyze the results from the experiment. Begin by removing the 161 people in the dataset 
+# who returned to prison before the experiment was conducted. Then create a new variable called ‘treatment_collapsed’ 
+# which tells us whether each observation in the data was in the control group (FALSE) or a treatment group (TRUE).
+
+load("~/Documents/Education/Penn/Classes/DATA 210/Week 7/felons.RData")
+
+count(felons, returntoprison == 1) # Confirming that 161 subjects have returned to prison
+
+felons.exp <- subset(felons, felons$returntoprison == 0) # Creating new set with 161 excluded
+
+count(felons.exp, returntoprison == 1) # Validating prev line
+
+attributes(felons$treatment) # Getting better data for the treatment column
+
+felons.exp <- mutate(felons.exp,
+       treatment_collapsed = treatment != 1) # Adding new variable based on control group logic
+
+felons.exp <- select(felons.exp, -returntoprison) # Removing "returntoprison" since none in this group went back
+
+# d. The first thing you should always do before analyzing the results of an experiment is assess whether you have 
+# balance in your treatment and control groups. In a well-balanced experiment, no pre-treatment covariates 
+# (i.e. the variables that existed before you ran the experiment) would predict whether or not somebody ended up 
+# in the treatment or control group. For the following questions, use the treatment_collapsed variable.
+
+# i. Use 4 t-tests to assess whether the felons’ age, number of days served in prison, time since their release 
+# from prison, or 2008 vote turnout is a statistically significant predictor of treatment. To do the t-tests, 
+# you’ll want to write code that looks like this: t.test(felons$age ~ felons$treatment_collapsed). 
+# Create a well-formatted table the present the average values for each of these variables in the treatment 
+# and control groups, as well as the the p-value associated with the difference between those averages. 
+# You can pull out these values from the output of the t.test() object using the $ operator. 
+# Is there significant imbalance for any of those four variables?
+
+age.exp <- t.test(felons.exp$age ~ felons.exp$treatment_collapsed) # Getting analysis for each
+num.days.served.exp <- t.test(felons.exp$days_served ~ felons.exp$treatment_collapsed)
+yrs.since.release.exp <- t.test(felons.exp$yrs_since_release ~ felons.exp$treatment_collapsed)
+vote08.exp <- t.test(felons.exp$vote08 ~ felons.exp$treatment_collapsed)
+
+# Validating t-tests
+
+mean(felons.exp$age[felons.exp$treatment_collapsed == TRUE]) # 35.23
+mean(felons.exp$age[felons.exp$treatment_collapsed == FALSE]) # 35.34
+
+mean(felons.exp$days_served[felons.exp$treatment_collapsed == TRUE]) # 369.48
+mean(felons.exp$days_served[felons.exp$treatment_collapsed == FALSE]) # 370.13
+
+mean(felons.exp$yrs_since_release[felons.exp$treatment_collapsed == TRUE]) # 1.8
+mean(felons.exp$yrs_since_release[felons.exp$treatment_collapsed == FALSE]) # 1.8
+
+mean(felons.exp$vote08[felons.exp$treatment_collapsed == TRUE], na.rm = TRUE) # .0522
+mean(felons.exp$vote08[felons.exp$treatment_collapsed == FALSE], na.rm =  TRUE) # .0495
+
+library(broom) # Organizing into a table
+library(purrr)
+
+testgroup <- map_df(list(age.exp, num.days.served.exp, vote08.exp, yrs.since.release.exp), tidy)
+
+testgroup <- rename(testgroup,
+                    mean.diff = estimate,
+                    control = mean.false,
+                    treatment = mean.true) # Renaming columns for easier navigation
+
+rownames(testgroup) <- c("age", "num.days.served", "vote08", "time.since.release") # Identifying each row better as well
+
+# According to my table, there aren't any major imbalances.
+
+# ii. Use linear regression to assess whether the type of crime predicts whether somebody ended up in the treatment or control group. 
+# Were any crimes strong predictors of the treatment?
+
+# Analyzing whether treatment group is influenced by felony type
+
+summary(lm(treatment_collapsed ~ felony_type, data = felons.exp))
+
+# According to this analysis, no particular felony type influenced whether or not they were in a particular group.
+
+# iii. Use linear regression to assess balance for all the variables (age, days in prison, time since release, 2008 turnout,
+# crime type) simultaneously. When you do this, do you find imbalance for any of the pre-treatment covariates?
+
+summary(lm(treatment_collapsed ~ 
+             vote08 + 
+             age + 
+             days_served + 
+             yrs_since_release + 
+             felony_type, 
+           data = felons.exp))
+
+# No imbalances found.
+
+# e. Did the experiment have an effect on whether or not ex-felons registered to vote? Did it impact their turnout in 2012? 
+# If so, how much did the treatment increase or decrease the probability that they registered or turned out? 
+# You can use linear regression and the ‘treatment_collapsed’ variable to answer this question.
+
+summary(lm(treatment_collapsed ~ registered, data = felons.exp))
+
+# There is strong indication that registration numbers were impacted by the experiment, as 
+# the p-value of .0047 demonstrates a significant difference between the control and treatment groups.
+
+summary(lm(treatment_collapsed ~ vote12, data = felons.exp))
+
+# Though less impacted (p-value of .048 or < .05), the experiment did make a significant difference on 2012 turnout.
+
+summary(lm(treatment_collapsed ~ registered + vote12, data = felons.exp))
+
+# f. Use linear regression to estimate these two treatment effects again. This time, control for the five pre-treatment 
+# covariates (the ones you checked for balance in part C in your regression). What effect did the treatment have 
+# on registration and voting?
+
+# Regressions with pre-treatments included to get registration data:
+
+summary(lm(treatment_collapsed ~ felony_type + treatment + age + days_served + yrs_since_release,
+           data = felons.exp[felons.exp$registered == 1,]))
+
+summary(lm(treatment_collapsed ~ felony_type + treatment + age + days_served + yrs_since_release,
+           data = felons.exp[felons.exp$registered == 0,]))
+
+# Regressions with pre-treatments included to get 2012 voter data:
+
+summary(lm(treatment_collapsed ~ felony_type + treatment + age + days_served + yrs_since_release,
+           data = felons.exp[felons.exp$vote12 == 1,]))
+
+summary(lm(treatment_collapsed ~ felony_type + treatment + age + days_served + yrs_since_release,
+           data = felons.exp[felons.exp$vote12 == 0,]))
+
+# The data, even once weighted by pre-treatment controls, demonstrates a significant increase in 
+# voter registration and turnout for those included in the treatment group.
