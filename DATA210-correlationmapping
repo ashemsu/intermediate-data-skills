@@ -1,0 +1,147 @@
+###
+#DATA-2100
+#Adefoluke Shemsu
+#Week 4
+###
+
+setwd("~/Documents/Education/Penn/Classes/DATA 210/Week 4")
+
+library(dplyr)
+library(tidyverse)
+
+#PROBLEM 1 - For this question, you will investigate the relationship between education completion rates and poverty levels. 
+# The data is currently found in two separate files. 
+# You will follow the steps outlined below to prepare the data, merge the data, and then analyze the data.
+
+#1. Read in ‘education_long.csv’
+
+ed.long <- read.csv("~/Documents/Education/Penn/Classes/DATA 210/Week 4/education_long.csv")
+
+#2. Reshape the data into ‘wide format’
+
+ed.wide <- spread(ed.long,
+       key = "Year",
+       value = "College_Completion_Rate") #Moving data to 'wide format'
+
+#3. Read in sheet 2 of the file ‘PovertyReport.xlsx’
+
+poverty.report <- readxl::read_excel("~/Documents/Education/Penn/Classes/DATA 210/Week 4/PovertyReport.xlsx","Sheet2")
+
+#4. The poverty data was collected in 2017. Select rows from the education dataset from 2017.
+
+ed.2017 <- select(ed.wide, c("Name", "2013-2017_Rural", "2013-2017_Urban", "2013-2017_Total")) #Pulling 2017 ed data
+
+#5. Merge these two data sets so that all matched observations are retained.
+
+ed.pov.2017 <- merge(ed.2017, 
+      poverty.report, 
+      by = "Name")
+
+#6. Graphically investigate the relationship between general poverty levels 
+# and the college completion rates for each demographic group. What do you notice?
+
+ed.pov.2017 <- rename(ed.pov.2017, #First, want to clean up column headings a bit for a clearer visualization
+       "Rural.Grad.Rate" = "2013-2017_Rural",
+       "Urban.Grad.Rate" = "2013-2017_Urban",
+       "Total.Grad.Rate" = "2013-2017_Total",
+       "Percent.Poverty.Overall" = "Percent",
+       "2017.Poverty.Percentage" = "Percent_0to17")
+
+ggplot(ed.pov.2017, aes(Total.Grad.Rate, Percent.Poverty.Overall)) + #Visualizing new data
+  geom_point() +
+  geom_smooth(method = "lm")
+
+#This data displays a clear relationship between poverty and graduation rates, 
+# where the poorer an area is, the lower the college graduation rate is.
+
+#PROBLEM 2 - For this question, you will investigate the relationship of the racial 
+#demographics of a school and the critical reading score on the SAT.
+
+#1. Load the datasets profiling NYC schools from 2006-2012 and NYC schools 2010 SAT scores, respectively.
+
+school.racial.data <- read_csv("~/Documents/Education/Penn/Classes/DATA 210/Week 4/2006-2012_School_Demographics_and_Accountability_Snapshot.csv")
+SAT.scores <- read_csv("~/Documents/Education/Penn/Classes/DATA 210/Week 4/SAT__College_Board__2010_School_Level_Results.csv")
+
+#2. For this problem, we want to merge the 2010 SAT dataset with the the NYC school profiles for that year. 
+# First, subset the NYC school profile so that it only includes data from the 2009/2010 school year.
+
+school.demos.2010 <- spread(school.racial.data, #First going to restructure data for a cleaner subset
+       key = "schoolyear",
+       value = "schoolyear")
+
+school.demos.2010 <- select(school.demos.2010, -c("20052006", #Isolating 20092010
+                                                       "20062007", 
+                                                       "20072008", 
+                                                       "20082009", 
+                                                       "20102011", 
+                                                       "20112012"))
+school.demos.2010 <- drop_na(school.demos.2010, "20092010") #Subsetting to only include 20092010
+
+sat.demo.data <- merge(SAT.scores, school.demos.2010, by = "DBN") #Merging data via DBN number
+
+
+#3. If you look at the dimensions of the data, it seems that there are substantially more schools included in the profile2010 data. 
+# Look through both datasets carefully to see why this might be (Hint: search for areas where there are missing values)
+
+dim(sat.demo.data) #Viewing dimensions
+
+#There are more "schools" with the profile data because this data stacked school names with founder/dedication names.
+
+#4. Remove the values that do not belong.
+
+sat.demo.data <- select(sat.demo.data, -c("Name", "fl_percent", "prek":"grade8"))
+
+#Removed empty column, the column causing name confusion, and
+# all PreK - 8th grade data since SATs are generally taken by high school students, so this data
+# will offer clearer insights into an more accurate display of relevant SAT demo data
+
+#5. Merge the datasets. Which variable is the most appropriate to use as a unique identifier?
+
+#I think I accidentally jumped ahead here because my methodology had me merging the data early on, 
+# then cleaning up the values that didn't belong after it was merged for a cleaner look
+
+#6. Now, let’s explore this data a bit. 
+# Say we want to see how the racial demographics of a school impact the school’s average critical reading score on the SAT. 
+# Plot these two variables for each race on four different graphs and discuss findings.
+
+#Cleaning data up a bit more first - changing column names and removing more unnecessary values
+
+sat.demo.data <- rename(sat.demo.data,
+       "school_name" = "School Name",
+       "num_test_takers" = "Number of Test Takers",
+       "reading_mean" = "Critical Reading Mean",
+       "math_mean" = "Mathematics Mean",
+       "writing_mean" = "Writing Mean") 
+
+sat.demo.data <- select(sat.demo.data, -"20092010")
+
+#To plot this data, I'm going to create a new object to make it a little easier to compare visually
+
+reading.by.demos <- select(sat.demo.data, c("school_name", "reading_mean", 
+                                            "black_per", 
+                                            "white_per", 
+                                            "hispanic_per",
+                                            "asian_per"))
+#Plotting findings
+
+ggplot(reading.by.demos, aes(reading_mean, black_per)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+
+ggplot(reading.by.demos, aes(reading_mean, white_per)) +
+         geom_point()+
+         geom_smooth(method = "lm")
+
+ggplot(reading.by.demos, aes(reading_mean, hispanic_per)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+
+ggplot(reading.by.demos, aes(reading_mean, asian_per)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+
+# Conclusion: There is a correlation between demographics and reading scores, but I think this data would
+# need a little more context data is validate whether the trends are irrefutably true, as one could argue that these trends
+# (reading scores decrease with higher percentages of black + hispanic students and increase with higher percentages
+# of white and asian students) don't account for socioeconomic status. I think looping in poverty rates and household
+# income would paint a clearer picture of not just the trend, but potentially could chart a path for combatting it.
