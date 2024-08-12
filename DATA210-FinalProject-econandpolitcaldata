@@ -1,0 +1,203 @@
+###
+#DATA-2100
+#Adefoluke Shemsu
+#FINAL EXAM
+###
+
+# PROBLEM 1
+
+setwd("~/Documents/Education/Penn/Classes/DATA 210/Week 8")
+
+library(tidyverse)
+library(dslabs)
+library(dplyr)
+library(randomizr)
+library(forcats)
+
+# 1. In this question, you will use a series of datasets to investigate population density in the United States.
+
+# a) Load in population data for Alabama (“sub-est2016_1.csv”) and Alaska (“sub-est2016_2.csv”), 
+# then append the two datasets together so that all of the information is within one dataframe.
+
+pop.data.1 <- read_csv("~/Documents/Education/Penn/Classes/DATA 210/Week 8/sub-est2016_1.csv")
+pop.data.2 <- read_csv("~/Documents/Education/Penn/Classes/DATA 210/Week 8/sub-est2016_2.csv")
+
+pop.data <- rbind(pop.data.1, pop.data.2) # Appending data
+
+# b) Read in the csv file that already contains population information for each state. 
+# Check to see which unique states are included in this dataset.
+
+pop.data.all <- read_csv("~/Documents/Education/Penn/Classes/DATA 210/Week 8/sub-est2016_all.csv")
+
+unique(pop.data.all$STNAME) # All 51 states are included
+
+# c) There’s a lot of interesting data in this population dataset, but for our purposes in this problem set, 
+# we are only interested in a few columns. Use the subset() function to subset the “NAME”, “STNAME”, and 
+# “POPESTIMATE2012” columns into a new dataset. (Using a different function to complete the same task will 
+# result in partial credit.)
+
+name.st.pop <- subset(pop.data.all, select = c("NAME", "STNAME", "POPESTIMATE2012"))
+
+# d) This new subsetted dataset definitely makes our lives easier, but it still includes the population stats for 
+# each city and town. You’ll notice, however, that the first observation for each new state is the population 
+# total for the entire state where the states name appears in both the NAME and STNAME columns. 
+# Use the subset() function to choose only these rows. Make sure that your new data set doesn’t have any
+# repeating/redundant observations or columns (The resulting dataframe should be 51 X 2)
+
+name.st.pop <- subset(name.st.pop, name.st.pop$NAME == name.st.pop$STNAME)
+name.st.pop <- subset(name.st.pop, select = c(-NAME))
+name.st.pop <- subset(unique(name.st.pop))
+
+# e) We’re going to try to find the population density of each state. Our first step in doing this is to read in some 
+# online data about the square mileage of each state from this link:
+# (https://raw.githubusercontent.com/jakevdp/PythonDataScienceHandbook/master/notebooks/data/state-areas.csv) 
+# Once the data is read in, merge that data set with our 2012 state populations dataset from the last question. 
+# Which observations can be matched? Make sure to not merge observation(s) that have no match.
+
+st.area <- read.csv(url("https://raw.githubusercontent.com/jakevdp/PythonDataScienceHandbook/master/notebooks/data/state-areas.csv"))
+
+name.st.pop <- rename(name.st.pop, # First, I'm going to map state names to one another.
+       "state" = "STNAME",
+       "popestimate2012" = "POPESTIMATE2012")
+
+name.st.area.pop <- merge(name.st.pop, st.area, by = "state")
+
+# f) Next, we are going to create a new variable in this merged dataset that tells us each state’s population density 
+# in 2012. Do this by dividing the population variable by the state size variable.
+
+name.st.area.pop <- mutate(name.st.area.pop,
+       pop.density.2012 = name.st.area.pop$popestimate2012/name.st.area.pop$area..sq..mi.)
+
+# g) Finally we’ve finished preparing our dataset, now we’re going to get into some more interesting investigative work. 
+# Let’s first load in the “ECN_2012_US_52A1.csv” dataset which includes economic data for each sector within each state. 
+# Get rid of the first row, as this merely gives us descriptions of each variable.
+
+econ.data <- read_csv("~/Documents/Education/Penn/Classes/DATA 210/Week 8/ECN_2012_US_52A1.csv")
+
+econ.data <- econ.data[-1,]
+
+# h) Find the total revenue per sector by state.
+
+# First, I'll need to aggregate the revenue data in order to display revenue per sector per state.
+
+revenue <- aggregate(econ.data$RCPTOT,
+                     by = list(econ.data$`GEO.display-label`, econ.data$`NAICS.display-label`),
+                     FUN = max)
+
+# Next will be ensuring revenue is stored as a numeric variable.
+
+revenue$x <- as.numeric(revenue$x)
+
+# Then a second round of aggregation to get down to get total revenue per state overall.
+
+revenue.2 <- aggregate(revenue$x,
+                       by = list(revenue$Group.1),
+                       FUN = sum,
+                       na.rm = TRUE)
+
+# Going to clean up a little more by renaming the columns.
+
+revenue.2 <- rename(revenue.2,
+                      "state" = "Group.1",
+                      "total.rev" = "x")
+
+# i) Now merge this dataset with our population density dataset.
+
+rev.density <- merge(name.st.area.pop, revenue.2, by = "state")
+
+# j) Plot the relationship between state population density and the state’s total revenue to see if there’s a relationship.
+# Comment on your findings.
+
+library(ggplot2)
+
+ggplot(rev.density, aes(pop.density.2012, total.rev)) +
+  geom_point(color = "blue", alpha = .5)+
+  scale_color_gradient(rev.density, low = "red", high = "blue")+
+  ggtitle("Population Density <> Revenue Relationship")+
+  labs(y = "Total Revenue", x = "Population Density")+
+  theme_classic()
+
+
+# While testing this in graphs, I've found that Washington DC and New York are such massive outliers that it is inhibiting the overall
+# analysis. In my purview, one can still spot the trends without this being included in the data set, so I will remove them,
+# then graph it again.
+
+rev.density.2 <- rev.density%>%
+  filter(pop.density.2012 < 1200, total.rev < 700000000)
+
+ggplot(rev.density.2, aes(pop.density.2012, total.rev)) +
+  geom_point(color = "blue", alpha = .5)+
+  scale_color_gradient(rev.density, low = "red", high = "blue")+
+  ggtitle("Population Density <> Revenue Relationship")+
+  labs(y = "Total Revenue", x = "Population Density")+
+  theme_classic()
+
+# As soon above, the correlation is much more visible. Based on this data, it is reasonable to say that there isn't a definitive
+# relationship between population density and revenue, as higher density doesn't automatically equate to more revenue.
+# Rather, I believe revenue has a better relationship to sector than to population density, since different states
+# Will have disproportionately different sectors that each compromise different facets of total revenue, and some of these sectors
+# generate much more in today's economy than others. Not to mention that population density doesn't guarantee revenue generation.
+# A great example of this is Washington DC, where the population density is extremely high, but doesn't come close to NYC
+# or other major cities due (I'm guessing here) to the fact that that area is known as the DMV, implying economic
+# cross pollenation between DC, VA, and MD.
+
+# PROBLEM 2
+
+# For this question, you will use the data file ‘nes.rda’ (which will require you to use load(“nes.rda”) 
+# to read in the data.) The codebook, called ‘nes2012_codebook.pdf’ is also available to you on Canvas. 
+# This data comes from the ANES 2012 Time Series Study, which looks at attitudes toward political ideologies and groups, 
+# among many other things.
+
+load("~/Documents/Education/Penn/Classes/DATA 210/Week 8/nes.rda")
+
+library(weights)
+library(anesrake)
+library(purrr)
+
+# 1. According to this survey, of those who claimed to have voted in the 2008 election, what percentage of survey 
+# respondents voted for Barack Obama in 2008? (Hint: you will need to search the codebook to find the variables 
+# ‘interest_voted2008’ and ‘interest_whovote2008’ in order to clean them correctly.)
+
+sum(nes$interest_whovote2008 == 1)/ #Dividing sum of votes for Obama by the sum of respondents that claimed to vote in 2008
+  sum(nes$interest_voted2008 == 1) #According to this code, 67% of confirmed voters voted for Obama
+
+# 2. A ‘Feeling Thermometer’ is a type of survey question that asks respondents to rate how warmly or cool they feel 
+# toward an individual or group. A feeling thermometer score of 100 indicates a respondent feels the most positive 
+# toward that entity. A feeling score of 0 indicates the respondent feels most negative about that entity. A score of 
+# 50 indicates indifference. Using the variable that records the feeling thermometer score towards the ‘Federal Government
+# in Washington,’ clean the variable to only include scores between 0 and 100. (Use the codebook to locate the ‘ftgr_fedgov’ 
+# variable to clean it properly.)
+
+nes.exp <- subset(nes, nes$ftgr_fedgov > -1 & nes$ftgr_fedgov < 101) # Setting the range
+
+# 3. Using the cleaned variable, what is the average feeling thermometer for the Federal Government in Washington, 
+# according to this survey?
+
+mean(nes.exp$ftgr_fedgov) # 52.48 (or just above 'indifference') is the average feeling toward the fed gov in Washington
+
+# 4. Using the ‘prevote_regpty’ variable, create a new variable that indicates whether a respondent is a Democrat or a 
+# Republican. All other political affiliations or unknowns should be set to ‘NA.’ (Use the codebook to clean this 
+# variable correctly.)
+
+party.data <- subset(nes.exp, nes.exp$prevote_regpty == 1:2) # Parsing down to dem/repub data
+party.data <- mutate(party.data, party = party.data$prevote_regpty == 1)
+
+# 5. Find the difference in means between the average feeling thermometer score for Democrats vs. Republicans. 
+# What do you conclude?
+
+dem.data <- subset(party.data, party.data$party == TRUE)
+rep.data <- subset(party.data, party.data$party == FALSE)
+ 
+mean(dem.data$ftgr_fedgov) - # Dems mean score - 58.49 
+  mean(rep.data$ftgr_fedgov) # GOP mean score - 41.74
+
+# Without making any assumptions, it can be inferred from this data that a difference of 16.75 on average in favor for Dems
+# indicates that democrats in general tend to lean more toward supporting Washington's federal government, 
+# though this data may arguably have been skewed by the aforementioned Obama election data, which would support 
+# an additional thesis that this difference is influenced by the party in office at a given time.
+
+# We can test this thesis loosely with a regression model
+
+summary(lm(interest_whovote2008 ~ ftgr_fedgov, data = party.data))
+
+# This test indicates the potential impact of who a person voted for on their level of federal approval in Washington.
