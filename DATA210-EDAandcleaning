@@ -1,0 +1,184 @@
+#######
+##DATA-2100
+##Adefoluke Shemsu
+#Week 3
+#######
+
+setwd("~/Documents/Education/Penn/Classes/DATA 210/Week 3")
+library(dplyr)
+library(tidyverse)
+
+#PROBLEM 1 - In this question, we will explore data about the jobs that college graduates received
+# depending on their major while in college. The data come from the US Census Bureau’s 
+# 2010-2012 American Community Survey, and were aggregated and posted publicly at this website.
+
+#A. Begin by reading the file “recent-grads.csv” into R. 
+# How many rows and columns are there in the data? What is the unit of analysis of the data?
+
+recentgrads <- read_csv("~/Documents/Education/Penn/Classes/DATA 210/Week 3/recent-grads.csv")
+dim(recentgrads) #173 rows, 15 columns
+class(recentgrads) #Unit of analysis: College graduates
+
+#B. How many different “major categories” is the data divided into? 
+# Which category has the most majors in it? How many majors are in this category?
+
+c(unique(recentgrads$Major_category)) #Counting unique values in 'Major Categories'
+
+#Majors are divided into 16 categories.
+
+sort(recentgrads$Major_category) #Finding the category with the most majors
+
+#Engineering has the most majors.
+
+sum(recentgrads$Major_category == "Engineering") #Finding count of Engineering majors
+
+#29 majors fit the Social Science category
+
+#C. In total, how many women are included in the dataset? What percentage of people in the dataset are women?
+
+sum(recentgrads$Women, na.rm = TRUE) #Finding total women; 
+
+#na.rm = TRUE removes "NA" that comes from "Food Science"
+
+sum(recentgrads$Women, na.rm = TRUE)/
+  sum(recentgrads$Total, na.rm = TRUE) #Percentage of dataset that are women
+
+#57.52% of this dataset are women
+
+#D. Which major had the highest percentage of women graduates? Which one had the lowest percentage? What where those two percentages?
+
+recentgrads.index <- recentgrads%>%
+  mutate(W.Index = recentgrads$Women/recentgrads$Total) #Creating a new variable to calculate % of women grads
+
+max(recentgrads.index$W.Index, na.rm = TRUE) 
+min(recentgrads.index$W.Index, na.rm = TRUE) 
+
+#Highest percentage of women graduates (EARLY CHILDHOOD EDUCATION - 96.89%)
+#Lowest percentage of women graduates (MILITARY TECHNOLOGIES - 0%)
+
+#E. How many people in the data majored in a field in the “Health” category? 
+# What percentage of those people have a full-time, year-round job?
+
+health.majors <- subset(recentgrads, 
+                        Major_category == "Health") #Isolating Health majors
+
+sum(health.majors$Total, na.rm = TRUE) #Counting total students majored in Health
+
+# 463,230 people have majored in a "Health" category.
+
+healthmajor.employment <- health.majors%>% #Segmenting Health employment data
+  mutate(Pct.FTYR = health.majors$Full_time_year_round/(health.majors$Employed +
+                                                        health.majors$Unemployed))
+mean(healthmajor.employment$Pct.FTYR) # Averaging across all employment data to get % FTYR (full time, year round)
+
+# 52.43% of recent Health grads have full time, year round jobs.
+
+#F. Create a variable that tells you the spread in (i.e. the difference between) 
+# the 25th and 75th percentiles of income earned by people who received each major. 
+# Among majors with an unemployment rate of less than 6%, which one had the largest spread in salaries?
+
+gradincome <- recentgrads%>% #Adding income spread data
+  mutate(Income.Spread = recentgrads$P75th - recentgrads$P25th)
+
+low.unemployment <- subset(gradincome, gradincome$Unemployment_rate < .06) #Pulling < 6% unemployment rate
+
+max(low.unemployment$Income.Spread) #Largest spread is $77,500 (Astronomy and Astrophysics)
+
+#PROBLEM 2 - For this question, we will clean a messy dataset so that it can be used for analysis. 
+# The data we will use (“exit-poll-2016.RData”) is a version of the Pennsylvania exit poll survey from the November 2016 election. 
+# The data include responses from 2957 Election Day voters. Before digging into the questions below, take a
+# couple minutes to load the data and familiarize yourself with what is in it.
+
+load("~/Documents/Education/Penn/Classes/DATA 210/Week 3/exit-poll-2016.RData")
+ 
+
+#A1.What is our unit of observation in these survey data? 
+#A2. Does the dataset contain exactly one row for every observation? 
+#A3. If not, write code to reorganize the data so that each observation shows up as one, and only one, row. 
+#A4. After you’ve done that, write a line of code to check whether there is one 
+# row per respondent (who are each assigned a unique number in the id column). 
+#A5. Lastly, recode the numeric values of any new variables into meaningful labels (such as ‘favorable’ and ‘unfavorable’).
+
+#1. Unit of observation: Voter demographic data.
+#2. No, there are multiple rows to observe different aspects of the same data category.
+
+#3.Creating working data set of "exit".
+
+exit[1,] == exit[2,] #Validating dupes to remove/reshape
+
+exitpolls.default <- spread(exit, 
+                            key = favorable.cand,
+                            value = favorable.rating)
+
+#4.Validating to confirm no more dupe rows.
+
+duplicated(exitpolls.default$id)
+
+#5. Recoding new numeric values to reflect voter sentiments.
+
+exitpolls.default <- rename(exitpolls.default,
+                            voted.trump = trump,
+                           voted.clinton = clinton)
+
+#B. The information about each respondent’s education has been split across four columns. 
+# Reformat the data so that there is a single variable called educ that contains four possible values 
+# (‘hs’, ‘some college’,‘bachelors’,‘postgrad’). Set any missing values to NA.
+
+exitpolls.default <- unite(exitpolls.default,
+      col = "educ",
+      c("educ.hs","educ.somecoll","educ.bach", "educ.postgrad"),
+      sep = "") #Consolidating 'educ' data
+
+exitpolls.default%>% #Demonstrating the recode
+  mutate(educ,
+         '1000' = "hs",
+         '0100' = "some college",
+         '0010' = "bachelors",
+         '0001' = "postgrad",
+         '99999999' = NULL)
+
+#C. Now that the dataset is in good order, we can move on to cleaning individual variables/columns. 
+# Start by splitting the sex.age.race variable into three separate columns. 
+# Clean those new variables so that missing or unknown values are coded as NA.
+  
+exitpolls.default <- exitpolls.default%>% #Rearranging demo data and cleaning up the variables
+  separate(sex.age.race, c('sex', 'age', 'race'), sep = " ")
+
+#D. Create a new variable called third.party.
+# This variable should equal 0 if the respondent voted for Clinton or Trump and 1 if the respondent voted for another candidate. 
+# If the respondent did not vote, or we do not know whether or not they voted, this variable should be set to NA. 
+# After you’re done, remove PRSPA16 from the dataset.
+
+exitpolls.default <- exitpolls.default%>% #Creating third party variable + removing non/unknown voters
+  mutate(third.party = exitpolls.default$voted.clinton + exitpolls.default$voted.trump >= 4)%>%
+  na.omit() # >= 4 because 2s represent not voting for clinton or trump
+
+    
+#E. Often data scientists or social science researchers will refer to a variable that is coded as True/False or 0/1 as a ‘dummy’ or ‘indicator’ variable. 
+# Convert the married variable into a dummy variable, where 1 (or TRUE) indicates that somebody is married and 0 (or FALSE) indicates that they are not.
+
+exitpolls.default <- exitpolls.default%>% #Creating third party variable + removing non/unknown voters
+  mutate(married = exitpolls.default$married & exitpolls.default$married < 2) #Converting 'married' to a T/F
+
+
+#F. Recode the PHIL3 and partyid variables so that their values have meaningful labels, rather than just arbitrary numbers.
+
+exitpolls.default%>%
+  recode(exitpolls.default$party.affiliation, "1" = "dem", "2" = "repub", "3" = "other" ) 
+
+#Didn't fully understand this question/ran out of time
+
+#G. Make sure that every column has a name that is adequately descriptive and uniformly formatted.
+
+exitpolls.default <- exitpolls.default%>%
+  rename(, #Renaming columns to better reflect what date they contain
+       voted.third.party = third.party,
+       education = educ,
+       party.affiliation = partyid,
+       philly.2016 = PHIL3,
+       pa.votes.2016 = PRSPA16)
+
+#Final touches (column removal + recoding)
+
+exitpolls.default <- exitpolls.default%>% #Removal of PRSPA16
+  select(-exitpolls.default$pa.votes.2016)
