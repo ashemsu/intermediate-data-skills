@@ -1,0 +1,271 @@
+###
+#DATA-2100
+#Adefoluke Shemsu
+#Week 6
+###
+
+# PROBLEM 1
+
+setwd("~/Documents/Education/Penn/Classes/DATA 210/Week 6")
+
+library(tidyverse)
+require(weights)
+require(anesrake)
+
+# You will need to load several different data sets to complete this problem set. All of the data are available on Canvas.
+# Don’t forget that all data we provide you for this class can only be used for class purposes.
+
+# In this question, we’re going to explore a variation of the birthday problem. 
+# Ultimately we want you to answer the following question: in a large group of people, 
+# what is the probability that you pick a random day of the year and nobody in the group has that birthday? 
+# For these questions you can assume that all years have 365 days. 
+# Thoughout this question, we’ll only worry about birth month and day (i.e. you can ignore birth year)
+
+#a) We’ll begin with the basics. Write a line or two of code that randomly draws birthdays for 
+# 500 people and checks whether nobody has a birthday on the first day of the year (i.e. January 1). 
+# The sample() function should be helpful here. Hint: use the numbers 1 through 365 to represent birthdays, 
+# and sample from those numbers.
+
+birthdays.vec <- sample(1:365, 500, replace = TRUE) # Creating birthday vectors for 500 people
+
+birthdays <- birthdays.vec #Turning sample into more actionable data set
+
+birthdays <- as.data.frame(table(birthdays)) 
+
+subset(birthdays, c(birthdays == "1")) #Indexing for # of Jan 1 birthdays; 0 occurrences
+
+# b) The previous question allowed us to calculate whether or not somebody had a January 1 birthday in the sample we drew. 
+# That’s not especially interesting, since our answer could change if we drew a new sample. 
+# It would be more interesting to know (before we draw the sample) what the probability is that nobody in 
+# our group had a birthday on January 1. We can use for-loops to estimate these types of probabilities. 
+
+# The idea is that if we repeat what we did in part A a large number of times (each time drawing a new random sample), 
+# the proportion of the samples in which nobody had a January 1 birthday equals the probability that nobody has a 
+# January 1 birthday (for a group this size). Write a for-loop that repeats the calculation you did in part A 1,000 times. 
+# Each time, you should store the result (i.e. whether or not there was anybody with a January 1 birthday) in a vector 
+# so that you can see all 1,000 results after the loop is completed.
+
+birthdays <- rename(birthdays, #Cleaning up for easier analysis
+       freq = "Freq")
+
+birthdays <- mutate(birthdays, #Creating variable to represent what pct those numbers make up of the total 500
+       pct.of.total = freq/(sum(freq))*100) #Sum of pct.of.total = 100%
+
+x <- 1
+
+bdays.loop <- rep(0,1000) #Looping the vectors 1000 times
+for(x in seq(1:1000)){
+  bdays.loop <- print(birthdays.vec)
+}
+
+
+# This version walks through 1000 models that also display the chance of getting that number of 500 people  
+
+# c) Find the mean of the vector of results you created in part B. 
+# What is the probability that, in a group of 500 people, nobody in the group has a birthday on January 1? 
+# Hint: Your answer should be somewhere between 0 and 1 (i.e. 0% and 100%). 
+# If your answer equals exactly 0 or 1, you’ve done something wrong.
+
+mean(as.numeric(birthdays$birthdays)) # Mean = 134
+
+n <- 1
+c <- 0
+perc <- 0
+
+for (n in 1:1000){
+  bdays <- birthdays.vec
+if (1 %in% bdays) score = 1 else score = 0
+c = c + score
+perc <- (c/1000)
+print(paste(n)) 
+}
+  
+# d) Now let’s use what we learned about writing our own functions to make our code a little bit more general. 
+# Write a function where you specify the size of the group (rather than fixing it at 500), 
+# and the function tells you the probability that nobody in a group that size has a January 1 birthday. 
+# Use the function to estimate that probability for a group of 750 people. What is that probability?
+
+# Got mixed up with the normal version of for-loop for this, so trying another way to find probability more cleanly
+
+for(x in seq(1:1000)){
+    pct.jan.1 <- print(wpct(sample(1:365, 750, replace = TRUE)))
+}
+
+# Stuck here, finish first then come back
+
+# e) Bonus question: Use your function and another for-loop to calculate the probability for every group size between 500 and 1500. 
+# Use the plot() function to make a simple scatter plot of your results. What do you notice about the results?
+
+# PROBLEM 2
+
+# 2. Typically when we’re working with survey data, our goal is to use the responses of the survey 
+# to understand the larger group of people that the survey respondents represent (usually called the sample frame). 
+# If we’re interested in understanding the political attitudes of everybody who lives in the United States, 
+# then we could use a survey of Americans to further our understanding. It’s almost impossible, however, 
+# that a sample of a few thousand (or even a hundred thousand) people would have demographic attributes that are exactly 
+# identical to the US population as a whole. Because of this fact, we use survey weights to slightly adjust the 
+# composition of our sample to match the sampling frame.
+
+# In an ideal world, every respondents’ survey weight would equal exactly 1. In practice, this is never really 
+# possible in any real-world scenario. The best we can do is to draw a survey that’s as representative of the sampling 
+# frame as possible, and then use weights to make small adjustments to account for the imperfection and randomness 
+# in the sampling process. In this question, we’re going to use survey data from a July 2019 survey about American 
+# politics (“july-2019-sm-poll.sav). To keep things a bit simpler, the data we’ve provided for this problem set
+# doesn’t include every question on the survey.
+
+poll.data <- rio::import("/Users/ade/Documents/Education/Penn/Classes/DATA 210/Week 6/july-2019-sm-poll.sav")
+
+# a. We’ll begin by looking at the weight variable in the dataset. 
+# What is the average weight given to people in the dataset? 
+# Why is it generally a good idea for survey weights to have this average?
+
+mean(poll.data$weight) #Mean weight is 1.0. 
+
+# This indicates that the weighting across all demographics is balanced, regardless of whether it is + or - 1.
+
+# b. Sometimes we trim survey weights so that no single respondent has a huge amount of influence on the 
+# conclusions we draw from the data. Does it appear that the survey weights in the anger data have been trimmed? 
+# If so, what value were they trimmed to?
+
+# There doesn't appear to be any trimming, as no respondent that I've seen seems to have a disproportionate influence.
+
+# c. Identify the person in the data that has the highest survey weight. 
+# What is the race and gender of this person? Why might this person have such a high survey weight?
+
+attributes(poll.data$race) # Viewing attributes to see how numeric values under the race/gender column translate to characters.
+attributes(poll.data$gender)
+
+# The respondent's race is Hispanic and their gender is female.
+
+attributes(poll.data$party) # Pulling some more attributes for better context
+attributes(poll.data$state)
+
+# This respondent likely has a heavier weight due to the rarity of her political affiliation (repub)
+# and her geographical location (ID), which, when combined with her minority demographics (Hispanic female),
+# infers a likeliness that this weightiness is made to offset what I would surmise is a largely white male and female 
+# respondent base from that particular region. 
+
+# This theory can also be exemplified in the data:
+
+idaho <- subset(poll.data, state == "13")
+
+count(idaho, weight > 1) # Of the respondents who recieved a weight over 1 alone, we're already looking at 28/101 entries
+
+count(idaho, weight > 4.5) # Drilling down further, only 1 other respondent of 100 others matched her, so the need to offset here makes sense
+
+# d. What is the unweighted average age of people in the dataset? 
+# Using the survey weights, what is the weighted average age of people in the data? 
+# The weighted.mean() function might be helpful here. You can ignore the people who did not 
+# provide their age in the survey, and leave them out of the denominators. 
+# What does the difference between these two numbers indicate to you?
+
+mean(poll.data$age) 
+
+# The unweighted average age is 52
+
+weighted.mean(poll.data$age, poll.data$weight) 
+
+# The weighted average is 45, which indicates that this group is likely more skewed toward the older (55+) side, 
+# which may demonstrate implications in how their values, income, and generation may disproportionately impact
+# the survey.
+
+# e. Compare the unweighted versus weighted percentages of people in the survey who are white, black, Hispanic, and Asian.
+# When you apply the weights, which groups increase in size and which decrease? 
+# By how much do each of the group sizes change (in terms of percentage points)? 
+# You might find the wpct() function in the ‘weights’ package to be useful.
+
+# First going to segment this data to make it easier to analyze without impacting the larger set
+
+race.data <- select(poll.data, c(race, weight))
+# Pulling specific numbers to validate with manual math
+count(race.data, race == "1") # = 11,448 white
+count(race.data, race == "2") # = 1,397 black
+count(race.data, race == "3") # = 1,009 hispanic
+count(race.data, race == "4") # = 530 asian
+count(race.data, race == "5") # = 1,145 other
+
+unweighted.race <- wpct(race.data$race)
+
+# Unweighted = 0.73720137 white, 0.08996072 black, 0.06497521 hispanic, 0.03412969 asian, 0.07373302 other
+
+weighted.race <- wpct(race.data$race, race.data$weight)
+
+# Weighted = 0.61709576 white, 0.12891352 black, 0.16001156 hispanic, 0.03031985 asian, 0.06365931 other
+
+# When applying the weights, the white and asian demographics shrank while the other groups grew. 
+
+# Getting exact difference
+
+tibble(weighted.race - unweighted.race)
+
+# White -12%, black +3.9%, hispanic +9.5%, asian -0.381%, other -0.101%
+    
+# f. What percentage of people said that they would be somewhat or very willing to pay higher taxes to pay for 
+# infrastructure improvements? What is this percentage when you only look at Republicans? 
+# What about when you only look at Democrats? 
+# You should use the survey weights and omit people who did not answer the question from your calculations.
+
+#Segmenting for analysis
+
+infra.support <- select(poll.data, c("taxes_improve_infrastructure", "party", "weight"))
+
+# Removing data points based on criteria
+
+# First, focusing in on 'somewhat willing' and 'very willing'
+infra.support <- infra.support%>%
+  filter(taxes_improve_infrastructure == 1:2)
+# Then, since our focus is dems/repubs, removing independents
+infra.support <- infra.support%>%
+  filter(party != 2)
+# Also removing NAs for the sake of calculation
+infra.support <- na.omit(infra.support)
+
+count(poll.data, taxes_improve_infrastructure == "5")
+sum(infra.support$taxes_improve_infrastructure)/15109 #this number comes from removing 353 "no response" + 67 NAs
+
+# 43.5% of people are somewhat or very willing to pay taxes toward infrastructure projects
+
+wpct(infra.support$party) # Unweighted = 42.22% republican, 57.77% democrat
+wpct(infra.support$party, infra.support$weight) # Weighted = 43.46% republican, 56.53% democrat
+
+# g. Analyze the questions about trust in the state and federal governments. 
+# Use those variables, and others in the dataset, to find some interesting pattern or result in the data. 
+# What did you find?
+
+# The pattern I'm seeking will be a validation of a relationship between party affiliation and support of the fed vs state government,
+# since the commericial dem vs repub argument should demonstrate a correlation where more democrats support national
+# government while republicans skew more toward states rights and smaller government.
+    
+# First, going to focus this data on individuals with strong support ("Just about always" and "Most of the time").
+
+state.trust <- select(poll.data, c("trust_state_gov", "party", "weight"))
+fed.trust <- select(poll.data, c("trust_fed_gov", "party", "weight"))
+
+state.trust <- na.omit(state.trust)
+fed.trust <- na.omit(fed.trust)
+
+state.trust <- state.trust%>%
+  filter(state.trust$trust_state_gov == 1:2)
+
+fed.trust <- fed.trust%>%
+  filter(fed.trust$trust_fed_gov == 1:2)
+
+
+# Assessing for correlation
+
+wpct(state.trust$party) # 47.27% republican, 11.31% independent, 41.4% democrat
+wpct(state.trust$party, state.trust$weight) # 44.66% republican, 15.7% independent, 39.62% democrat
+
+wpct(fed.trust$party)# 56.31% republican, 13.9% independent, 29.74% democrat
+wpct(fed.trust$party, fed.trust$weight) # 51.89% republican, 18.6% independent, 29.47% democrat
+
+# The result of this survey was really interesting because the overall pattern here was actually found in the fact
+# that republicans appear to more strongly support our government overall, both at the state and federal levels. In fact,
+# there were even less democrats that either mostly or just about always trusted the federal government especially,
+# with nearly 10% less of democratic respondents trusting the federal government.
+
+# So, despite the many tropes on social media and and messages touted by pundits, this data indicates that republicans overall
+# appear to very much believe in the government with lesser skepticism than democrats. Though, I think it would also
+# be great to get data on cities as well (since states can be very skewed politically and republicans in cities
+# may be less likely to be open about it) and education as it pertains to political alignment, since dems are historically
+# more college educated. That may paint a clearer picture of why these percentages were presented as such.
